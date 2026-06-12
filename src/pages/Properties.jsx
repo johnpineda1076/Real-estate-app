@@ -1,20 +1,33 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { PropertyGrid, PropertyFilter } from '../components/property';
-import { properties, filterProperties } from '../data/properties';
+import { getProperties } from '../lib/propertiesService';
 
 const Properties = () => {
   const [filters, setFilters] = useState({});
+  const [filteredProperties, setFilteredProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterOptions, setFilterOptions] = useState({ types: [], cities: [] });
 
-  // Calcular propiedades filtradas
-  const filteredProperties = useMemo(() => {
-    return filterProperties(filters);
+  useEffect(() => {
+    const fetchProperties = async () => {
+      setLoading(true);
+      try {
+        const data = await getProperties(filters);
+        setFilteredProperties(data);
+        if (!filters.type && !filters.city) {
+          setFilterOptions({
+            types: [...new Set(data.map(p => p.type))],
+            cities: [...new Set(data.map(p => p.city))],
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProperties();
   }, [filters]);
-
-  // Extraer opciones únicas de las propiedades para los filtros
-  const filterOptions = useMemo(() => ({
-    types: [...new Set(properties.map(p => p.type))],
-    cities: [...new Set(properties.map(p => p.city))],
-  }), []);
 
   const handleFilter = (newFilters) => {
     setFilters(newFilters);
@@ -27,7 +40,11 @@ const Properties = () => {
 
         <PropertyFilter onFilter={handleFilter} options={filterOptions} />
 
-        {filteredProperties.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-accent text-lg">Loading properties...</p>
+          </div>
+        ) : filteredProperties.length > 0 ? (
           <>
             <p className="text-accent mb-4">
               Showing {filteredProperties.length} {filteredProperties.length === 1 ? 'property' : 'properties'}

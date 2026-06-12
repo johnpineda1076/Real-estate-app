@@ -11,6 +11,7 @@ import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
 import Login from './pages/Login.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
+import PropertyFormPage from './pages/admin/PropertyFormPage.jsx';
 
 function App() {
   return (
@@ -32,6 +33,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/properties/new"
+              element={
+                <ProtectedRoute>
+                  <PropertyFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/properties/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <PropertyFormPage />
                 </ProtectedRoute>
               }
             />

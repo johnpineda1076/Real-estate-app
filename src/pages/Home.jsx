@@ -1,14 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PropertyGrid } from '../components/property';
 import { BlogCard } from '../components/blog';
 import { Button, Input, Textarea, Card, Badge } from '../components/ui';
-import { getFeaturedProperties } from '../data/properties';
+import { getFeaturedProperties } from '../lib/propertiesService';
 import { getRecentPosts } from '../data/blogPosts';
 
 const Home = () => {
-  const properties = getFeaturedProperties(3);
+  const [properties, setProperties] = useState([]);
   const blogPosts = getRecentPosts(2);
+
+  useEffect(() => {
+    getFeaturedProperties(3)
+      .then(setProperties)
+      .catch(console.error);
+  }, []);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -80,7 +86,16 @@ const Home = () => {
             <h2 className="text-4xl font-bold text-primary mb-4">Featured Properties</h2>
             <p className="text-muted max-w-2xl mx-auto">Discover our handpicked selection of premium properties</p>
           </div>
-          <PropertyGrid properties={properties} columns={3} />
+          {properties.length > 0 ? (
+            <PropertyGrid properties={properties} columns={3} />
+          ) : (
+            <div className="text-center py-16 text-accent">
+              <svg className="w-16 h-16 mx-auto mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9.75L12 3l9 6.75V21a.75.75 0 01-.75.75H3.75A.75.75 0 013 21V9.75z" />
+              </svg>
+              <p className="text-lg">No properties available yet. Check back soon.</p>
+            </div>
+          )}
           <div className="text-center mt-12">
             <Button to="/properties" size="lg">View All Properties</Button>
           </div>

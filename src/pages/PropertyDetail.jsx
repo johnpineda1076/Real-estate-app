@@ -1,23 +1,49 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ImageCarousel } from '../components/property';
-import { getPropertyById } from '../data/properties';
+import { getPropertyById } from '../lib/propertiesService';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const PropertyDetail = () => {
   const { id } = useParams();
-  const property = getPropertyById(id);
+  const { user } = useAuth();
+  const [property, setProperty] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProperty = async () => {
+      try {
+        const data = await getPropertyById(id);
+        setProperty(data);
+      } catch (err) {
+        setProperty(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProperty();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-lightGray flex items-center justify-center">
+        <p className="text-accent text-lg">Loading...</p>
+      </div>
+    );
+  }
 
   if (!property) {
     return (
       <div className="min-h-screen bg-lightGray py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-secondary rounded-lg shadow-lg p-8 text-center">
-            <h1 className="text-3xl font-bold text-primary mb-4">Propiedad no encontrada</h1>
-            <p className="text-accent mb-6">La propiedad que buscas no existe.</p>
+            <h1 className="text-3xl font-bold text-primary mb-4">Property not found</h1>
+            <p className="text-accent mb-6">The property you are looking for does not exist.</p>
             <Link
               to="/properties"
               className="bg-primary text-secondary px-6 py-3 rounded-lg hover:bg-accent transition-colors duration-300 inline-block"
             >
-              Ver todas las propiedades
+              View all properties
             </Link>
           </div>
         </div>
@@ -25,11 +51,16 @@ const PropertyDetail = () => {
     );
   }
 
+  const images = property.property_media
+    ?.filter(m => m.type === 'image')
+    .sort((a, b) => a.display_order - b.display_order)
+    .map(m => m.url) ?? [];
+
   return (
     <div className="min-h-screen bg-lightGray py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
-        <nav className="mb-6">
+        <nav className="mb-6 flex items-center justify-between">
           <div className="flex items-center space-x-2 text-sm text-accent">
             <Link to="/" className="hover:text-primary transition-colors">Inicio</Link>
             <span>/</span>
@@ -37,23 +68,36 @@ const PropertyDetail = () => {
             <span>/</span>
             <span className="text-primary">{property.title}</span>
           </div>
+          {user && (
+            <Link
+              to={`/admin/properties/${property.id}/edit`}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit Property
+            </Link>
+          )}
         </nav>
 
         {/* Main Content */}
         <div className="bg-secondary rounded-lg shadow-lg overflow-hidden">
           {/* Image Section */}
           <div className="relative">
-            <ImageCarousel 
-              images={property.images || [property.image]} 
+            <ImageCarousel
+              images={images}
               title={property.title}
             />
             <div className="absolute top-4 right-4 z-40">
               <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
-                property.state === 'Nuevo' 
-                  ? 'bg-green-500 text-white' 
+                property.status === 'available'
+                  ? 'bg-green-500 text-white'
+                  : property.status === 'reserved'
+                  ? 'bg-yellow-500 text-white'
                   : 'bg-blue-500 text-white'
               }`}>
-                {property.state}
+                {property.status}
               </span>
             </div>
           </div>
@@ -81,19 +125,19 @@ const PropertyDetail = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 p-6 bg-lightGray rounded-lg">
               <div className="text-center">
                 <div className="text-3xl font-bold text-primary">{property.bedrooms}</div>
-                <div className="text-sm text-accent mt-1">Alcobas</div>
+                <div className="text-sm text-accent mt-1">Bedrooms</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-primary">{property.bathrooms}</div>
-                <div className="text-sm text-accent mt-1">Baños</div>
+                <div className="text-sm text-accent mt-1">Bathrooms</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary">{property.landArea}</div>
-                <div className="text-sm text-accent mt-1">Área Terreno (m²)</div>
+                <div className="text-3xl font-bold text-primary">{property.land_area ?? '—'}</div>
+                <div className="text-sm text-accent mt-1">Land Area (m²)</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary">{property.privateArea}</div>
-                <div className="text-sm text-accent mt-1">Área Privada (m²)</div>
+                <div className="text-3xl font-bold text-primary">{property.area}</div>
+                <div className="text-sm text-accent mt-1">Built Area (m²)</div>
               </div>
             </div>
 
@@ -113,32 +157,32 @@ const PropertyDetail = () => {
                     <span className="font-semibold text-primary">{property.type}</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-accent/20 pb-2">
-                    <span className="text-accent">Estado:</span>
-                    <span className="font-semibold text-primary">{property.state}</span>
+                    <span className="text-accent">Status:</span>
+                    <span className="font-semibold text-primary">{property.status}</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-accent/20 pb-2">
-                    <span className="text-accent">Ciudad:</span>
+                    <span className="text-accent">City:</span>
                     <span className="font-semibold text-primary">{property.city}</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-accent/20 pb-2">
-                    <span className="text-accent">Barrio:</span>
+                    <span className="text-accent">Neighborhood:</span>
                     <span className="font-semibold text-primary">{property.neighborhood}</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-accent/20 pb-2">
-                    <span className="text-accent">Número de Alcobas:</span>
+                    <span className="text-accent">Bedrooms:</span>
                     <span className="font-semibold text-primary">{property.bedrooms}</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-accent/20 pb-2">
-                    <span className="text-accent">Número de Baños:</span>
+                    <span className="text-accent">Bathrooms:</span>
                     <span className="font-semibold text-primary">{property.bathrooms}</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-accent/20 pb-2">
-                    <span className="text-accent">Área del Terreno:</span>
-                    <span className="font-semibold text-primary">{property.landArea} m²</span>
+                    <span className="text-accent">Land Area:</span>
+                    <span className="font-semibold text-primary">{property.land_area ?? '—'} m²</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-accent">Área Privada:</span>
-                    <span className="font-semibold text-primary">{property.privateArea} m²</span>
+                    <span className="text-accent">Built Area:</span>
+                    <span className="font-semibold text-primary">{property.area} m²</span>
                   </div>
                 </div>
               </div>
